@@ -9,7 +9,7 @@ This skill allows you (the AI Coding Agent) or the user to run deterministic M36
 
 ## Initial Setup
 Before using this skill for the first time, you or the user MUST run the setup wizard:
-1. Navigate to the skill directory: `cd C:\Users\LucioBottacin\Source\Personal\m365-case-intake`
+1. Navigate to the directory where this repository was cloned.
 2. Run `npm install`
 3. Run `npm run setup`
 4. Follow the interactive prompts in the terminal to configure the user's name, timezone, product filters, and OneDrive folder. The setup will also launch a browser to ensure the user is logged into M365 Copilot.

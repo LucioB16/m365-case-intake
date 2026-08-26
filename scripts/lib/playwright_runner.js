@@ -28,28 +28,46 @@ async function runCopilot(promptText, outputFilePath) {
     await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 });
 
     try {
-        console.log('[INFO] Switching to Work scope...');
-        const workToggle = page.locator('button[data-content="Work"]');
-        await workToggle.waitFor({ state: 'visible', timeout: 5000 });
-        const isSelected = await workToggle.getAttribute('aria-selected');
-        if (isSelected !== 'true') {
-            await workToggle.click();
+        console.log('[INFO] Ensuring Work IQ is enabled...');
+        const workIqToggle = page.locator('button:has-text("Work IQ")').first();
+        await workIqToggle.waitFor({ state: 'visible', timeout: 5000 });
+        const ariaChecked = await workIqToggle.getAttribute('aria-checked');
+        if (ariaChecked !== 'true') {
+            await workIqToggle.click();
+            console.log('[INFO] Turned ON Work IQ.');
             await page.waitForTimeout(2000);
+        } else {
+            console.log('[INFO] Work IQ is already ON.');
         }
     } catch (e) {
-        console.log('[INFO] Work toggle not found within 5s, might be unavailable or already set.');
+        console.log('[INFO] Work IQ toggle not found within 5s, continuing...');
     }
 
     try {
         console.log('[INFO] Selecting Claude Opus model...');
-        const claudeDropdown = page.locator('button[data-test-id="claude-submenu-trigger"]');
-        await claudeDropdown.waitFor({ state: 'visible', timeout: 5000 });
-        await claudeDropdown.click();
-        await page.waitForTimeout(1000);
-        const opusOption = page.locator('button[data-test-id="claude-opus-option"]');
-        await opusOption.waitFor({ state: 'visible', timeout: 5000 });
-        await opusOption.click();
-        console.log('[INFO] Selected Claude Opus model.');
+        const modeSwitcher = page.locator('#gptModeSwitcher');
+        await modeSwitcher.waitFor({ state: 'visible', timeout: 5000 });
+        
+        const currentMode = await modeSwitcher.textContent();
+        if (currentMode && currentMode.includes('Opus')) {
+            console.log('[INFO] Claude Opus is already selected.');
+        } else {
+            // Open the main mode menu
+            await modeSwitcher.click();
+            await page.waitForTimeout(1000);
+            
+            // Hover/Click the Claude category in the list
+            const claudeTrigger = page.locator('[data-test-id="gptSubMenuModelTrigger-Claude"]');
+            await claudeTrigger.waitFor({ state: 'visible', timeout: 5000 });
+            await claudeTrigger.click(); 
+            await page.waitForTimeout(1000);
+            
+            // Select Opus from the sub-menu popover
+            const opusOption = page.locator('div[role="menuitemradio"]:has-text("Opus")').last();
+            await opusOption.waitFor({ state: 'visible', timeout: 5000 });
+            await opusOption.click();
+            console.log('[INFO] Selected Claude Opus model.');
+        }
     } catch (e) {
         console.log('[INFO] Could not select Claude Opus explicitly, continuing with default model.');
     }
