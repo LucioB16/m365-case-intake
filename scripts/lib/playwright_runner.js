@@ -160,7 +160,7 @@ async function runCopilot(promptText, outputFilePath) {
         fs.mkdirSync(outDir, { recursive: true });
     }
     
-    fs.writeFileSync(outputFilePath, clipboardText, 'utf8');
+    fs.writeFileSync(outputFilePath, responseText, 'utf8');
     console.log(`[INFO] Saved final response to ${outputFilePath}`);
 
     await context.close();
