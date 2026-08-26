@@ -31,18 +31,17 @@ function parsePayload(markdownFile, onedriveFolderConfig) {
         fs.mkdirSync(onedriveRoot, { recursive: true });
     }
 
-    const regex = /(?:```markdown\s*\n)?\*\*FilePath:\*\*\s*`([^`]+)`\s*(?:```\w*\s*\n)?(.*?)(?:```)/gs;
+    // We will look for markdown code blocks and extract the file path from the text immediately preceding them.
+    // Extremely robust to Copilot formatting (handles **, ###, FilePath: `, etc.)
+    const blocksRegex = /([a-zA-Z0-9_\-\.\/ ]+\.(?:md|json))[^\n]*\n\s*```(?:markdown|json)?\s*\n([\s\S]*?)```/g;
+
     let match;
     let filesParsed = 0;
-
-    // Alternative simpler regex based on Copilot's typical output:
-    // "Client Cases/Account/Case/agents.md\n```markdown\n(content)\n```"
-    const blocksRegex = /([a-zA-Z0-9_\-\.\/ ]+)\s*\n\s*```(?:markdown)?\s*\n(.*?)```/gs;
 
     console.log(`\nParsing markdown payload into ${onedriveRoot}...`);
 
     while ((match = blocksRegex.exec(content)) !== null) {
-        const relativePath = match[1].trim();
+        let relativePath = match[1].trim();
         const fileContent = match[2].trim() + '\n';
 
         // Ignore generic or conversational captures

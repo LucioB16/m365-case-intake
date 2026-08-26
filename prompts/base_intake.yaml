@@ -145,5 +145,13 @@ guardrails:
 {{OBFUSCATION_RULES}}
 
 final_response_to_user:
-  - Output the summary.
-  - Payload Emission: MUST emit the full content of EVERY file created or updated (agents.md, claude.md, .intake_index.json) in markdown code blocks with the exact local filepath preceding each block.
+  - Output the summary of actions taken.
+  - Payload Emission: You MUST emit the full content of EVERY file created or updated (e.g., agents.md, claude.md, .intake_index.json).
+  - DO NOT JUST WRITE A SUMMARY. You are a robotic file generator. If you do not output the code blocks, the system will fail.
+  - CRITICAL FORMATTING RULE: For each file, you MUST output the relative filepath on a single line by itself, followed IMMEDIATELY by a markdown code block containing the exact file content.
+  - EXAMPLE FORMAT:
+    Client Cases/Account Name/12345 - Case Title/agents.md
+    ```markdown
+    Case ID: 12345
+    ...
+    ```
