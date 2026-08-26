@@ -10,7 +10,7 @@ This repository provides an automated, deterministic workflow for extracting sup
 
 ## 🚀 Features
 
-- **Agent Agnostic**: Works flawlessly with Codex, Claude Code, Cursor, Aider, and others.
+- **Agent Agnostic**: Works flawlessly with Codex, Claude Code, Cursor, GitHub Copilot, Antigravity, and others.
 - **Auto-Discovery**: Automatically resolves your local OneDrive path based on system environment variables.
 - **Data Obfuscation**: Toggleable PII redaction (names, IPs, server paths) to strictly respect client security policies.
 - **Git Ready**: Automatically instructs coding agents to initialize local git repositories within case folders to track progress and prevent context loss.
@@ -18,7 +18,7 @@ This repository provides an automated, deterministic workflow for extracting sup
 
 ## 🔌 Installation
 
-To equip your AI Coding Agent (e.g. Codex, Claude Code, Cursor, Aider) with this skill:
+To equip your AI Coding Agent (e.g. Codex, Claude Code, Cursor, GitHub Copilot, Antigravity) with this skill:
 
 1. Clone this repository into your local machine.
 2. Direct your agent to read the `SKILL.md` file in the root of the repository.
