@@ -1,0 +1,15 @@
+{
+  "name": "m365-case-intake",
+  "version": "1.0.0",
+  "description": "M365 Copilot automated case intake skill",
+  "main": "scripts/run_batch.js",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "batch": "node scripts/run_batch.js",
+    "fetch": "node scripts/run_fetch.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "inquirer": "^8.2.6"
+  }
+}
