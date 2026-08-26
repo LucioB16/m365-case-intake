@@ -25,7 +25,7 @@ async function runCopilot(promptText, outputFilePath) {
 
     const page = await context.newPage();
     console.log(`[INFO] Navigating to ${URL}`);
-    await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     try {
         console.log('[INFO] Ensuring Work IQ is enabled...');
@@ -73,26 +73,52 @@ async function runCopilot(promptText, outputFilePath) {
     }
 
     console.log('[INFO] Pasting prompt into the composer...');
-    const chatInput = page.locator('#chat-input-textarea');
+    let chatInput = page.locator('#chat-input-textarea');
+    try { await chatInput.waitFor({ state: 'visible', timeout: 2000 }); } catch(e) {}
+    
+    if (!await chatInput.isVisible()) {
+        chatInput = page.locator('textarea').last();
+        try { await chatInput.waitFor({ state: 'visible', timeout: 2000 }); } catch(e) {}
+    }
+    
+    if (!await chatInput.isVisible()) {
+        console.log('[INFO] Falling back to [contenteditable="true"] for chat input...');
+        chatInput = page.locator('[contenteditable="true"]').last();
+    }
+    
     await chatInput.waitFor({ state: 'visible', timeout: 15000 });
     
-    // Evaluate to set value (bypasses slow typing)
-    await chatInput.evaluate((el, val) => {
-        el.value = val;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-    }, promptText);
+    // Evaluate to set value (bypasses slow typing), fallback to fill if it's a contenteditable
+    try {
+        await chatInput.evaluate((el, val) => {
+            el.value = val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        }, promptText);
+    } catch(e) {
+        await chatInput.fill(promptText);
+    }
 
     await page.waitForTimeout(1000);
     
     console.log('[INFO] Submitting prompt...');
-    const sendBtn = page.locator('button[data-test-id="send-button"]');
+    let sendBtn = page.locator('button[data-test-id="send-button"]');
+    try { await sendBtn.waitFor({ state: 'visible', timeout: 3000 }); } catch(e) {}
+    if (!await sendBtn.isVisible()) {
+        console.log('[INFO] data-test-id="send-button" not found, falling back to aria-label="Submit" or "Send"...');
+        sendBtn = page.locator('button[aria-label*="Submit"], button[aria-label*="Send"], button[title*="Submit"], button[title*="Send"]').last();
+    }
     await sendBtn.waitFor({ state: 'visible' });
     await sendBtn.click();
 
     console.log('[INFO] Waiting for response to finish streaming (waiting for Copy button)...');
     
-    const copyButton = page.locator('button[data-test-id="copy-button"]').last();
-    await copyButton.waitFor({ state: 'visible', timeout: 600000 }); // Wait up to 10 mins
+    let copyButton = page.locator('button[data-test-id="copy-button"]').last();
+    try { await copyButton.waitFor({ state: 'visible', timeout: 300000 }); } catch(e) {}
+    if (!await copyButton.isVisible()) {
+        console.log('[INFO] data-test-id="copy-button" not found, falling back to generic copy label...');
+        copyButton = page.locator('button[aria-label*="Copy"], button[title*="Copy"]').last();
+        await copyButton.waitFor({ state: 'visible', timeout: 300000 }); // Wait up to 5 mins total
+    }
     
     console.log('[INFO] Response streaming completed (Copy button appeared).');
     
