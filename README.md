@@ -1,6 +1,5 @@
 # M365 Case Intake Skill
 
-[![Release](https://img.shields.io/github/v/release/LucioB16/m365-case-intake?label=release)](https://github.com/LucioB16/m365-case-intake/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Codex](https://img.shields.io/badge/Codex-compatible-blue)](https://github.com/LucioB16/m365-case-intake)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-orange)](https://github.com/LucioB16/m365-case-intake)
