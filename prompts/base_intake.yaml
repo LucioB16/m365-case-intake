@@ -93,7 +93,11 @@ email_patterns:
 {{TRACKING_SCOPE_RULES}}
 
 environment_url_detection:
+  instructions: "Extract the customer's environment URL if present in the email body. You MUST ignore our internal ticketing system URLs."
   pattern: "https?://[a-zA-Z0-9-]+\\.crm[0-9]*\\.dynamics\\.com[^\\s]*"
+  ignore_urls_containing:
+    - "arbelatechnologies.crm"
+    - "argano.crm"
 
 file_template_for_agents_md: |
   Case ID: <case_id>
