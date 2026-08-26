@@ -73,49 +73,39 @@ async function runCopilot(promptText, outputFilePath) {
     }
 
     console.log('[INFO] Pasting prompt into the composer...');
-    let chatInput = page.locator('#chat-input-textarea');
-    try { await chatInput.waitFor({ state: 'visible', timeout: 2000 }); } catch(e) {}
-    
-    if (!await chatInput.isVisible()) {
-        chatInput = page.locator('textarea').last();
-        try { await chatInput.waitFor({ state: 'visible', timeout: 2000 }); } catch(e) {}
-    }
-    
-    if (!await chatInput.isVisible()) {
-        console.log('[INFO] Falling back to [contenteditable="true"] for chat input...');
-        chatInput = page.locator('[contenteditable="true"]').last();
-    }
-    
+    let chatInput = page.locator('#m365-chat-editor-target-element, #chat-input-textarea, [contenteditable="true"]').first();
     await chatInput.waitFor({ state: 'visible', timeout: 15000 });
     
-    // Evaluate to set value (bypasses slow typing), fallback to fill if it's a contenteditable
+    // Fill the Lexical editor or textarea
     try {
+        await chatInput.fill(promptText);
+    } catch(e) {
         await chatInput.evaluate((el, val) => {
             el.value = val;
             el.dispatchEvent(new Event('input', { bubbles: true }));
         }, promptText);
-    } catch(e) {
-        await chatInput.fill(promptText);
     }
 
     await page.waitForTimeout(1000);
     
     console.log('[INFO] Submitting prompt...');
-    let sendBtn = page.locator('button[data-test-id="send-button"]');
+    let sendBtn = page.locator('button.fai-SendButton, button[data-test-id="send-button"]').first();
     try { await sendBtn.waitFor({ state: 'visible', timeout: 3000 }); } catch(e) {}
-    if (!await sendBtn.isVisible()) {
-        console.log('[INFO] data-test-id="send-button" not found, falling back to aria-label="Submit" or "Send"...');
-        sendBtn = page.locator('button[aria-label*="Submit"], button[aria-label*="Send"], button[title*="Submit"], button[title*="Send"]').last();
+    
+    if (await sendBtn.isVisible()) {
+        await sendBtn.click();
+    } else {
+        console.log('[INFO] Send button not found, submitting via Enter key...');
+        await chatInput.focus();
+        await page.keyboard.press('Enter');
     }
-    await sendBtn.waitFor({ state: 'visible' });
-    await sendBtn.click();
 
     console.log('[INFO] Waiting for response to finish streaming (waiting for Copy button)...');
     
-    let copyButton = page.locator('button[data-test-id="copy-button"]').last();
+    let copyButton = page.locator('button[data-testid="CopyButtonTestId"], button[data-test-id="copy-button"]').last();
     try { await copyButton.waitFor({ state: 'visible', timeout: 300000 }); } catch(e) {}
     if (!await copyButton.isVisible()) {
-        console.log('[INFO] data-test-id="copy-button" not found, falling back to generic copy label...');
+        console.log('[INFO] Explicit copy button not found, falling back to generic copy label...');
         copyButton = page.locator('button[aria-label*="Copy"], button[title*="Copy"]').last();
         await copyButton.waitFor({ state: 'visible', timeout: 300000 }); // Wait up to 5 mins total
     }
