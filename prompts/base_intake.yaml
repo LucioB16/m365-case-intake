@@ -114,6 +114,8 @@ file_template_for_agents_md: |
   - Use the /support-case-investigator skill for analyzing this case.
   - If the user asks you to generate a message or reply, use the /humanizer skill on the draft.
   - Always send generated messages in a plain text code block unless instructed otherwise.
+  - Any message that the user confirms as sent or received MUST be recorded in the Activity log.
+  - Do NOT write the full message content directly in the Activity log. Instead, create a separate markdown file for it in a `messages/` subfolder (e.g., `messages/2026-08-26_15-57_Sent.md` or `messages/2026-08-26_15-57_Received.md`), and just add a markdown link referencing that file in the Activity log.
   - If there is no local git repository for this folder, initialize one (local only, no remote) to track changes and prevent context loss.
 {{OBFUSCATION_WARNING}}
 
