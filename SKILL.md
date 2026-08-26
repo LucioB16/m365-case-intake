@@ -45,8 +45,8 @@ If you (the AI Agent) run the intake scripts and the console output says `No fil
 
 1. Read the raw response output saved in `./logs/latest_response.md`.
 2. Analyze the prose summary provided by Copilot to identify the new cases, assignments, or portal comments it found.
-3. Read `./prompts/base_intake.yaml` to understand the required `agents.md` and `claude.md` file schemas.
-4. Manually generate and write the case files directly into the user's configured OneDrive directory using your own file-writing tools. Do not bother running `parser.js` again; just create the folders and files yourself based on the data Copilot returned.
+3. Overwrite `./logs/latest_response.md` with the correctly formatted code blocks: a single line containing the exact relative filepath, followed immediately by the markdown code block containing the file content (as instructed in `prompts/base_intake.yaml`).
+4. Run `npm run parse` to re-execute the parser on your corrected file. This ensures the deterministic file-writing logic is preserved and files are safely created.
 
 ## Internal Architecture
 - `config.json`: The user's preferences.

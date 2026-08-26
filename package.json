@@ -6,7 +6,8 @@
   "scripts": {
     "setup": "node scripts/setup.js",
     "batch": "node scripts/run_batch.js",
-    "fetch": "node scripts/run_fetch.js"
+    "fetch": "node scripts/run_fetch.js",
+    "parse": "node -e \"const { parsePayload } = require('./scripts/lib/parser.js'); const config = require('./config.json'); parsePayload('./logs/latest_response.md', config.ONEDRIVE_FOLDER);\""
   },
   "dependencies": {
     "playwright": "^1.40.0",
