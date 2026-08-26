@@ -17,6 +17,7 @@ async function runCopilot(promptText, outputFilePath) {
             args: ['--disable-blink-features=AutomationControlled'],
             viewport: { width: 1280, height: 720 }
         });
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']);
         console.log('[INFO] Edge launched successfully!');
     } catch (e) {
         console.error('[ERROR] Failed to launch Edge:', e.message);

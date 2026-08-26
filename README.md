@@ -24,19 +24,14 @@ To equip your AI Coding Agent (e.g. Codex, Claude Code, Cursor, GitHub Copilot, 
 2. Direct your agent to read the `SKILL.md` file in the root of the repository.
 3. Tell your agent: *"Run the setup wizard for the M365 Case Intake skill."*
 
-## 🛠️ Setup
+## ⚙️ Setup
 
-Before using the skill, run the interactive configuration wizard:
+Before using the skill, ask your AI Coding Agent to configure it:
 
-```bash
-npm install
-npm run setup
-```
-
-The wizard will:
-1. Open Edge to ensure you are authenticated with M365 Copilot.
-2. Guide you through setting up your workspace preferences, timezones, and product filters.
-3. Save your configuration to a local `config.json` file.
+1. The AI Agent will interactively ask you for your preferences (Name, Email, OneDrive path, Timezone, Products, etc.).
+2. The AI Agent will generate a `config.json` file in the root directory.
+3. The AI Agent will run `npm install` and `npm run setup`.
+4. An Edge browser window will open automatically for you to log into M365 Copilot (close it when done).
 
 ## 📦 Usage
 

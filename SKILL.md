@@ -8,11 +8,20 @@ description: "M365 Copilot automated case intake syncing to OneDrive"
 This skill allows you (the AI Coding Agent) or the user to run deterministic M365 Copilot case intakes, persisting support cases directly to the local filesystem (OneDrive) using Playwright automation.
 
 ## Initial Setup
-Before using this skill for the first time, you or the user MUST run the setup wizard:
+Before using this skill for the first time, you (the AI Agent) MUST guide the user through the setup process:
 1. Navigate to the directory where this repository was cloned.
-2. Run `npm install`
-3. Run `npm run setup`
-4. Follow the interactive prompts in the terminal to configure the user's name, timezone, product filters, and OneDrive folder. The setup will also launch a browser to ensure the user is logged into M365 Copilot.
+2. Run `npm install`.
+3. **DO NOT run setup yet.** First, interactively ask the user for their preferences (one by one or as a form) to generate `config.json` in the root directory. You must ask for:
+   - Full Name
+   - Work Email
+   - Path to OneDrive cases folder (e.g., `C:/Users/Name/OneDrive/Client Cases`)
+   - Timezone (e.g., `America/Buenos_Aires`)
+   - Products to track (comma-separated, e.g., `CRM, Power Platform`)
+   - Lookback window in hours (e.g., `24`)
+   - Scope of tracking (`ALL` or `ASSIGNED_ONLY`)
+   - Enable Data Obfuscation (boolean, true/false)
+4. Create the `config.json` file securely with the user's answers.
+5. Run `npm run setup`. This will launch an interactive browser for the user to log into M365 Copilot. Wait for the user to close the browser.
 
 ## Usage
 
