@@ -24,7 +24,7 @@ template = template
     .replace(/{{TIMEZONE}}/g, config.TIMEZONE)
     .replace(/{{LOOKBACK_HOURS}}/g, config.LOOKBACK_HOURS)
     .replace(/{{ONEDRIVE_FOLDER}}/g, config.ONEDRIVE_FOLDER)
-    .replace(/{{OBJECTIVE_OVERRIDE}}/g, "In this single run, process every matching email received in the active scan window, keep a folder with agents.md and claude.md per case, and return a single inline summary.");
+    .replace(/{{OBJECTIVE_OVERRIDE}}/g, "In this single run, process every matching email received in the active scan window, keep a folder with AGENTS.md and CLAUDE.md per case, and return a single inline summary.");
 
 // Inject Products
 const productsYamlList = config.PRODUCTS.map(p => `        - "${p}"`).join('\n');

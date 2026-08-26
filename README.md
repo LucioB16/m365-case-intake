@@ -6,7 +6,7 @@
 
 Automated M365 Copilot case intake and syncing skill for AI Coding Agents.
 
-This repository provides an automated, deterministic workflow for extracting support cases from Outlook via Microsoft 365 Copilot (using Playwright automation) and persisting them into locally synced OneDrive folders as context-ready markdown files (`agents.md` & `claude.md`).
+This repository provides an automated, deterministic workflow for extracting support cases from Outlook via Microsoft 365 Copilot (using Playwright automation) and persisting them into locally synced OneDrive folders as context-ready markdown files (`AGENTS.md` & `CLAUDE.md`).
 
 ## 🚀 Features
 

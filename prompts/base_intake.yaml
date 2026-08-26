@@ -39,7 +39,7 @@ time_resolution:
 
 definition_of_done:
   - All emails inside the scan window classified or explicitly skipped with reason.
-  - For each accepted email: account folder exists, case folder exists, agents.md and claude.md exist, correct block appended to agents.md.
+  - For each accepted email: account folder exists, case folder exists, AGENTS.md and CLAUDE.md exist, correct block appended to AGENTS.md.
   - Final inline summary printed in this chat.
 
 time_handling:
@@ -53,7 +53,7 @@ scope:
   source: Outlook inbox (primary mailbox, top-level Inbox only, scoped by scan_window)
   storage_root: "OneDrive > {{ONEDRIVE_FOLDER}}"
   create_account_folder_if_missing: true
-  file_naming: "<CASE_ID> - <CASE_TITLE>/agents.md"
+  file_naming: "<CASE_ID> - <CASE_TITLE>/AGENTS.md"
   filename_sanitization:
     - replace any of \ / : * ? " < > | with "-"
 
@@ -67,7 +67,7 @@ state_index:
     cases:
       "<CASE_ID>":
         account: "<account folder name>"
-        filename: "<CASE_ID> - <CASE_TITLE>/agents.md"
+        filename: "<CASE_ID> - <CASE_TITLE>/AGENTS.md"
   read_rules:
     - read the index at pre_flight; use it to resolve paths before scanning.
   write_rules:
@@ -123,7 +123,7 @@ file_template_for_agents_md: |
   Activity log:
 
 file_template_for_claude_md: |
-  Please read agents.md for the complete case context and instructions.
+  Please read AGENTS.md for the complete case context and instructions.
 
 append_block_for_portal_comment: |
   [Portal Comment] <yyyy-mm-dd HH:mm local> - <comment_from>
@@ -138,8 +138,8 @@ orchestration:
     - 2. Classify as NEW_CASE | PORTAL_COMMENT | ASSIGN_CASE.
     - 3. Filter NEW_CASE by product allowlist.
     - 4. Resolve account folder under "{{ONEDRIVE_FOLDER}}".
-    - 5. Resolve case folder by "<CASE_ID> - <CASE_TITLE>". If missing, create it and create agents.md and claude.md.
-    - 6. Append the right block to agents.md.
+    - 5. Resolve case folder by "<CASE_ID> - <CASE_TITLE>". If missing, create it and create AGENTS.md and CLAUDE.md.
+    - 6. Append the right block to AGENTS.md.
     - 7. Upsert index in ".intake_index.json".
   idempotency:
     - hash before appending to prevent duplicates.
@@ -152,11 +152,11 @@ guardrails:
 
 final_response_to_user:
   - Output the summary of actions taken.
-  - Payload Emission: You MUST emit the full content of EVERY file created or updated (e.g., agents.md, claude.md, .intake_index.json).
+  - Payload Emission: You MUST emit the full content of EVERY file created or updated (e.g., AGENTS.md, CLAUDE.md, .intake_index.json).
   - DO NOT JUST WRITE A SUMMARY. You are a robotic file generator. If you do not output the code blocks, the system will fail.
   - CRITICAL FORMATTING RULE: For each file, you MUST output the relative filepath on a single line by itself, followed IMMEDIATELY by a markdown code block containing the exact file content.
   - EXAMPLE FORMAT:
-    Client Cases/Account Name/12345 - Case Title/agents.md
+    Client Cases/Account Name/12345 - Case Title/AGENTS.md
     ```markdown
     Case ID: 12345
     ...

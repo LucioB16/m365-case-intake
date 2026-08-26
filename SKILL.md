@@ -52,4 +52,4 @@ If you (the AI Agent) run the intake scripts and the console output says `No fil
 - `config.json`: The user's preferences.
 - `prompts/base_intake.yaml`: The template instruction for Copilot.
 - `scripts/lib/playwright_runner.js`: The headless browser automation bridging Node and M365.
-- `scripts/lib/parser.js`: Reads the payload from Copilot and writes it safely to `agents.md` inside OneDrive.
+- `scripts/lib/parser.js`: Reads the payload from Copilot and writes it safely to `AGENTS.md` inside OneDrive.

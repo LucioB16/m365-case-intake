@@ -1,1 +1,1 @@
-const content = `\n**FilePath:** \`Client Cases/Test/claude.md\`\n\`\`\`\nHello\n\`\`\`\n`; const blocksRegex = /([a-zA-Z0-9_\-\.\/ ]+\.(?:md|json))[^\n]*\n\s*```(?:markdown|json)?\s*\n([\s\S]*?)```/g; let match; while((match = blocksRegex.exec(content)) !== null) console.log(match[1]);
+const content = `\n**FilePath:** \`Client Cases/Test/CLAUDE.md\`\n\`\`\`\nHello\n\`\`\`\n`; const blocksRegex = /([a-zA-Z0-9_\-\.\/ ]+\.(?:md|json))[^\n]*\n\s*```(?:markdown|json)?\s*\n([\s\S]*?)```/g; let match; while((match = blocksRegex.exec(content)) !== null) console.log(match[1]);
