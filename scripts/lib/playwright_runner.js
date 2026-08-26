@@ -113,12 +113,47 @@ async function runCopilot(promptText, outputFilePath) {
     
     console.log('[INFO] Response streaming completed (Copy button appeared).');
     
-    await copyButton.click();
-    console.log('[INFO] Copied to clipboard.');
+    // Clear the emulated clipboard to ensure we don't read stale data
+    await page.evaluate(async () => { try { await navigator.clipboard.writeText(''); } catch(e){} });
     
-    const clipboardText = await page.evaluate(async () => {
-        return await navigator.clipboard.readText();
-    });
+    let responseText = "";
+    let attempts = 0;
+    
+    while (attempts < 5 && (!responseText || responseText.trim() === '')) {
+        await page.waitForTimeout(1000);
+        await copyButton.focus();
+        await copyButton.click({ force: true });
+        await page.waitForTimeout(2000); // Wait for the app's async copy operation
+        
+        responseText = await page.evaluate(async () => {
+            try {
+                return await navigator.clipboard.readText();
+            } catch (err) {
+                return "";
+            }
+        });
+        
+        if (!responseText || responseText.trim() === '') {
+            console.log(`[WARN] Clipboard empty on attempt ${attempts + 1}, retrying...`);
+        }
+        attempts++;
+    }
+    
+    if (responseText && responseText.trim() !== '') {
+        console.log('[INFO] Copied to clipboard successfully.');
+    } else {
+        console.log('[WARN] Clipboard extraction failed. Falling back to DOM text extraction...');
+        responseText = await copyButton.evaluate((btn) => {
+            // Heuristic: go up the DOM tree to find the message container, then extract innerText
+            let container = btn.parentElement;
+            for (let i = 0; i < 6; i++) {
+                if (container && container.parentElement) {
+                    container = container.parentElement;
+                }
+            }
+            return container ? container.innerText : "Fallback extraction failed.";
+        });
+    }
 
     const outDir = path.dirname(outputFilePath);
     if (!fs.existsSync(outDir)) {
