@@ -39,6 +39,15 @@ Fetches a specific case ignoring time restrictions and product filters.
 npm run fetch "CAS-1234567-XXXX" "last 30 days"
 ```
 
+## 🚑 Troubleshooting / Agent Fallbacks
+
+If you (the AI Agent) run the intake scripts and the console output says `No file payload blocks found.`, it means M365 Copilot was too conversational and ignored the strict markdown block formatting rules. When this happens, you MUST execute this fallback protocol:
+
+1. Read the raw response output saved in `./logs/latest_response.md`.
+2. Analyze the prose summary provided by Copilot to identify the new cases, assignments, or portal comments it found.
+3. Read `./prompts/base_intake.yaml` to understand the required `agents.md` and `claude.md` file schemas.
+4. Manually generate and write the case files directly into the user's configured OneDrive directory using your own file-writing tools. Do not bother running `parser.js` again; just create the folders and files yourself based on the data Copilot returned.
+
 ## Internal Architecture
 - `config.json`: The user's preferences.
 - `prompts/base_intake.yaml`: The template instruction for Copilot.
