@@ -134,7 +134,7 @@ append_block_for_assignment: |
 
 orchestration:
   steps:
-    - 1. List inbox emails within scan window matching the 3 patterns.
+    - 1. Search Outlook separately for NEW_CASE, PORTAL_COMMENT, and ASSIGN_CASE emails within the scan window; enumerate and reconcile the results from all three searches before concluding that a pattern has no matches.
     - 2. Classify as NEW_CASE | PORTAL_COMMENT | ASSIGN_CASE.
     - 3. Filter NEW_CASE by product allowlist.
     - 4. Resolve account folder under "{{ONEDRIVE_FOLDER}}".
