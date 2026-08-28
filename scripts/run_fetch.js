@@ -33,7 +33,13 @@ const overrideHeader = `========================================================
 4. Process ALL matching emails for this specific case, skipping any other cases.
 5. Report this window on the "Scan window:" line instead of the computed lookback.
 6. FORCE-ACCEPT this case REGARDLESS of the Product field. IGNORE the "product_must_contain_any" filter entirely.
-7. The OUTPUT CONTRACT below still applies without exception.
+7. PAYLOAD FORM OVERRIDE: this run rebuilds the case folder from scratch, so do NOT use the
+   APPEND form. Emit plain full-content payloads for both AGENTS.md and CLAUDE.md.
+   The AGENTS.md payload must contain the case header, then the Agent Instructions block,
+   then "---", then "Activity log:", then EVERY entry found in this window, oldest first,
+   each as a "[Portal Comment] ..." or "[Assigned to me] ..." block.
+   Fields you cannot find in the emails stay empty. Never invent a value.
+8. Every other rule of the OUTPUT CONTRACT below still applies without exception.
 =======================================================================
 
 `;
