@@ -1,7 +1,7 @@
-const fs = require('fs');
 const path = require('path');
 const { runCopilot } = require('./lib/playwright_runner');
 const { parsePayload } = require('./lib/parser');
+const { buildPrompt, loadConfig, loadTemplate, savePrompt } = require('./lib/prompt_builder');
 
 const args = process.argv.slice(2);
 if (args.length < 2) {
@@ -14,62 +14,57 @@ const caseId = args[0];
 const timeWindow = args[1];
 
 const rootDir = path.join(__dirname, '..');
-const configPath = path.join(rootDir, 'config.json');
-const yamlPath = path.join(rootDir, 'prompts', 'base_intake.yaml');
-const logPath = path.join(rootDir, 'logs', 'latest_response.md');
+const responsePath = path.join(rootDir, 'logs', 'latest_response.md');
+const promptPath = path.join(rootDir, 'logs', 'latest_prompt.md');
 
-if (!fs.existsSync(configPath)) {
-    console.error("config.json not found! Please run 'npm run setup' first.");
-    process.exit(1);
-}
+const EXIT = { OK: 0, INVALID: 1, PARTIAL: 2, FAILURE: 3 };
 
-const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-let template = fs.readFileSync(yamlPath, 'utf8');
+const objective = [
+    `In this single run, process ONLY emails related to CASE ID: ${caseId} received within the time window: ${timeWindow}.`,
+    'Print the resulting content of every affected file as payload blocks, exactly as described in the OUTPUT CONTRACT section.'
+].join(' ');
 
-// Inject Base Config
-template = template
-    .replace(/{{USER_NAME}}/g, config.USER_NAME)
-    .replace(/{{USER_EMAIL}}/g, config.USER_EMAIL)
-    .replace(/{{TIMEZONE}}/g, config.TIMEZONE)
-    .replace(/{{LOOKBACK_HOURS}}/g, config.LOOKBACK_HOURS)
-    .replace(/{{ONEDRIVE_FOLDER}}/g, config.ONEDRIVE_FOLDER)
-    .replace(/{{OBJECTIVE_OVERRIDE}}/g, `In this single run, process ONLY emails related to CASE ID: ${caseId} received within the time window: ${timeWindow}.`);
-
-const productsYamlList = config.PRODUCTS.map(p => `        - "${p}"`).join('\n');
-template = template.replace(/{{PRODUCTS_YAML_LIST}}/g, productsYamlList);
-
-template = template.replace(/{{TRACKING_SCOPE_RULES}}/g, "regex_rules:\n  - an email matches a pattern ONLY if BOTH its subject_regex AND its body_signal match; if either side fails, the pattern does not match.");
-
-const obfRule = config.OBFUSCATE_DATA 
-    ? "  - OBFUSCATION REQUIRED: Before writing ANY case description or activity log, aggressively replace sensitive PII (external names, email addresses, phone numbers, IP addresses, internal server names) with generic placeholders (e.g. [NAME], [EMAIL], [IP], [SERVER])."
-    : "";
-template = template.replace(/{{OBFUSCATION_RULES}}/g, obfRule);
-
-const obfWarning = config.OBFUSCATE_DATA
-    ? "  - NOTE: Sensitive client data (PII, server names, emails, IPs) in this case log has been intentionally obfuscated with generic placeholders to comply with security policies. Do not be confused by missing real names."
-    : "";
-template = template.replace(/{{OBFUSCATION_WARNING}}/g, obfWarning);
-
-const overrideHeader = `
-=======================================================================
+const overrideHeader = `=======================================================================
 >>> CRITICAL OVERRIDE FOR THIS SPECIFIC ON-DEMAND RUN <<<
 =======================================================================
 1. IGNORE the standard lookback parameters.
 2. ONLY search for and process emails matching THIS EXACT CASE ID: ${caseId}
 3. ONLY search within this specific time window: ${timeWindow}
 4. Process ALL matching emails for this specific case, skipping any other cases.
-5. Emit the final payload EXACTLY as defined in the rules below.
+5. Report this window on the "Scan window:" line instead of the computed lookback.
 6. FORCE-ACCEPT this case REGARDLESS of the Product field. IGNORE the "product_must_contain_any" filter entirely.
+7. The OUTPUT CONTRACT below still applies without exception.
 =======================================================================
 
-`.trim() + '\n\n';
+`;
 
 (async () => {
     try {
-        await runCopilot(overrideHeader + template, logPath);
-        parsePayload(logPath, config.ONEDRIVE_FOLDER);
+        const config = loadConfig(rootDir);
+        const prompt = buildPrompt({
+            template: loadTemplate(rootDir),
+            config,
+            objective,
+            prefix: overrideHeader
+        });
+        savePrompt(prompt, promptPath);
+
+        await runCopilot(prompt, responsePath);
+
+        const outcome = parsePayload(responsePath, config.ONEDRIVE_FOLDER);
+
+        if (outcome.status === 'INVALID') {
+            console.error(`\nFetch FAILED for ${caseId}: the reply did not honour the output contract. Raw reply kept at ${responsePath}.`);
+            process.exit(EXIT.INVALID);
+        }
+        if (outcome.status === 'PARTIAL') {
+            console.error(`\nFetch INCOMPLETE for ${caseId}: the reply was valid, but some payloads were not applied (see [SKIP] above).`);
+            process.exit(EXIT.PARTIAL);
+        }
         console.log(`\nFetch complete for ${caseId}!`);
+        process.exit(EXIT.OK);
     } catch (e) {
-        console.error(e);
+        console.error(`\nFetch FAILED: ${e && e.stack ? e.stack : e}`);
+        process.exit(EXIT.FAILURE);
     }
 })();

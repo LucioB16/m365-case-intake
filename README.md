@@ -11,6 +11,11 @@ This repository provides an automated, deterministic workflow for extracting sup
 ## 🚀 Features
 
 - **Agent Agnostic**: Works flawlessly with Codex, Claude Code, Cursor, GitHub Copilot, Antigravity, and others.
+- **Strict output contract**: M365 Copilot returns machine-parseable payloads, and a narrative
+  answer is reported as a failure instead of being silently treated as an empty run.
+- **Append-only by design**: existing case files are never reprinted by the model. Copilot emits
+  just the new Activity log entry and the local parser appends it, so history cannot be lost.
+- **Idempotent**: re-running the same window appends nothing twice.
 - **Auto-Discovery**: Automatically resolves your local OneDrive path based on system environment variables.
 - **Data Obfuscation**: Toggleable PII redaction (names, IPs, server paths) to strictly respect client security policies.
 - **Git Ready**: Automatically instructs coding agents to initialize local git repositories within case folders to track progress and prevent context loss.
@@ -42,3 +47,24 @@ Because this is an Agent Skill, you don't need to run terminal commands manually
 - **On-Demand Fetch**: *"Fetch the case CAS-1455051-S3F0 from the last 30 days using the case intake skill."*
 
 The agent will automatically read the `SKILL.md` instructions and execute the underlying Node scripts on your behalf.
+
+## ✅ How a run is judged
+
+Every run ends with an explicit verdict, so a chatty or incomplete answer can never look like a
+success:
+
+| Exit code | Verdict | Meaning |
+| --- | --- | --- |
+| 0 | `CHANGES` / `NO_CHANGES` | Files were written or appended, or there was genuinely nothing to do |
+| 1 | `INVALID` | The reply broke the output contract; nothing was written |
+| 2 | `PARTIAL` | The reply was valid but some payloads could not be applied |
+| 3 | failure | Config, browser or model-selection problem |
+
+See `SKILL.md` for the full output contract, the parser's safety guarantees and troubleshooting.
+
+## 🧪 Development
+
+```bash
+npm test        # contract, parser and prompt-pipeline tests
+npm run prompt  # render the prompt without contacting M365
+```
