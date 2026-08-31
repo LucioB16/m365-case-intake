@@ -115,6 +115,10 @@ Default: DEV
 ```
 
 - One line per environment, `LABEL: url`. Everything else in the file is free-form notes.
+- A `## Set name` heading whose name starts with `ERP` holds Dynamics 365 Finance & Operations
+  environments. They are recorded for reference and are **never** injected into a case file,
+  which tracks the CRM side.
+- Labels ending in a digit rank as their base, so `DEV1` and `DEV2` both count as `DEV`.
 - A `## Set name` heading groups a set of environments. Some clients run more than one set,
   for example AquaCal and TeamHorner, or Woodforest R1 and R2, and each set has its own
   DEV/TEST/UAT/PROD. Labels only need to be unique inside their set, and a `Default:` can be

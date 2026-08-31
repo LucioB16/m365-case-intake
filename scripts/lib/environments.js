@@ -14,8 +14,18 @@ const INTERNAL_HOST_PATTERNS = [
 
 // Lowest environment first. Work starts in DEV and is promoted upwards, so the safest
 // default for a case is the lowest one the client actually has. A client with only PROD
-// therefore defaults to PROD.
-const PROMOTION_ORDER = ['DEV', 'SANDBOX', 'SBX', 'QA', 'TEST', 'UAT', 'STAGING', 'STAGE', 'PREPROD', 'PRE-PROD', 'PROD', 'PRODUCTION'];
+// therefore defaults to PROD. Trailing digits are ignored, so DEV1 and DEV2 rank as DEV.
+const PROMOTION_ORDER = ['DEV', 'SANDBOX', 'SBX', 'SIT', 'QA', 'TEST', 'UAT', 'STAGING', 'STAGE', 'PREPROD', 'PRE-PROD', 'PROD', 'PRODUCTION'];
+
+// A "## ERP ..." set holds Dynamics 365 Finance & Operations environments. They are recorded
+// for reference but are never injected into a case file, which tracks the CRM side.
+const ERP_GROUP_RE = /^erp\b/i;
+
+function promotionRank(label) {
+    const base = String(label).replace(/[\s_-]*\d+$/, '');
+    const index = PROMOTION_ORDER.indexOf(base);
+    return index === -1 ? PROMOTION_ORDER.length : index;
+}
 
 function hostOf(url) {
     try {
@@ -60,6 +70,7 @@ function normalizeEnvironmentUrl(url) {
  */
 function parseEnvironments(content) {
     const environments = [];
+    const erp = [];
     let requestedDefault = '';
     let group = '';
 
@@ -86,11 +97,13 @@ function parseEnvironments(content) {
         const label = entryMatch[1].trim().toUpperCase();
         const url = normalizeEnvironmentUrl(entryMatch[2].replace(/[.,;)]+$/, ''));
         if (!url || isInternalUrl(url)) continue;
-        if (environments.some((e) => e.group === group && e.label === label)) continue;
-        environments.push({ group, label, url, name: group ? `${group}/${label}` : label });
+
+        const bucket = ERP_GROUP_RE.test(group) ? erp : environments;
+        if (bucket.some((e) => e.group === group && e.label === label)) continue;
+        bucket.push({ group, label, url, name: group ? `${group}/${label}` : label });
     }
 
-    return { environments, requestedDefault };
+    return { environments, erp, requestedDefault };
 }
 
 /**
@@ -113,7 +126,7 @@ function resolveDefault({ environments, requestedDefault }) {
     }
 
     for (const step of PROMOTION_ORDER) {
-        const match = environments.find((e) => e.label === step);
+        const match = environments.find((e) => promotionRank(e.label) === PROMOTION_ORDER.indexOf(step));
         if (match) return match;
     }
     return environments[0];
@@ -130,9 +143,7 @@ function sortByPromotion(environments) {
     return [...environments].sort((a, b) => {
         const g = groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group);
         if (g !== 0) return g;
-        const ia = PROMOTION_ORDER.indexOf(a.label);
-        const ib = PROMOTION_ORDER.indexOf(b.label);
-        return (ia === -1 ? PROMOTION_ORDER.length : ia) - (ib === -1 ? PROMOTION_ORDER.length : ib);
+        return promotionRank(a.label) - promotionRank(b.label);
     });
 }
 
@@ -150,7 +161,12 @@ function environmentsFor(rootPath, account) {
     const parsed = parseEnvironments(fs.readFileSync(filePath, 'utf8'));
     const chosen = resolveDefault(parsed);
     if (!chosen) return null;
-    return { all: sortByPromotion(parsed.environments), default: chosen, source: filePath };
+    return {
+        all: sortByPromotion(parsed.environments),
+        erp: sortByPromotion(parsed.erp),
+        default: chosen,
+        source: filePath
+    };
 }
 
 /** Convenience wrapper returning only the default environment. */
@@ -170,5 +186,6 @@ module.exports = {
     environmentsPathFor,
     isInternalUrl,
     normalizeEnvironmentUrl,
+    promotionRank,
     PROMOTION_ORDER
 };

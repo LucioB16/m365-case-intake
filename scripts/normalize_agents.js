@@ -25,7 +25,9 @@ function canonicalBullets(template) {
     if (start === -1) throw new Error('The prompt template no longer contains an "# Agent Instructions" heading.');
 
     const bullets = [];
-    for (const raw of template.slice(start).split('\n').slice(1)) {
+    // Split on either line ending: the template itself may be stored as CRLF, and a stray
+    // carriage return would otherwise be written into every case file.
+    for (const raw of template.slice(start).split(/\r?\n/).slice(1)) {
         const line = raw.replace(/^ {2}/, '');
         if (line.startsWith('- ')) { bullets.push(line); continue; }
         if (line.trim() === '' || line.startsWith('{{')) continue;
@@ -41,8 +43,13 @@ function canonicalBullets(template) {
  * Returns null when the file has no recognisable block, so it is reported instead of guessed at.
  */
 function rewrite(content, bullets) {
-    const eol = content.includes('\r\n') ? '\r\n' : '\n';
-    const lines = content.split(/\r?\n/);
+    // Pick the dominant line ending rather than "contains CRLF": a file can carry a few stray
+    // carriage returns and converting the whole file because of them would be wrong.
+    const crlf = (content.match(/\r\n/g) || []).length;
+    const lfOnly = (content.match(/(?<!\r)\n/g) || []).length;
+    const eol = crlf > lfOnly ? '\r\n' : '\n';
+
+    const lines = content.split(/\r?\n/).map((l) => l.replace(/\r+$/, ''));
     const headingIndex = lines.findIndex((l) => l.trim() === HEADING);
     if (headingIndex === -1) return null;
 
