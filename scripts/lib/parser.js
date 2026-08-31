@@ -2,8 +2,30 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { analyzeResponse, formatReport } = require('./response_contract');
+const { defaultEnvironmentFor } = require('./environments');
 
 const ACTIVITY_MARKER_RE = /^\[(?:Portal Comment|Assigned to me)\]/;
+const ENVIRONMENT_LINE_RE = /^Environment URL:[ \t]*(.*)$/m;
+
+/**
+ * Fills an empty "Environment URL:" header from the account's ENVIRONMENTS.md.
+ * Only ever touches the line when it is blank, so a URL that really came from the email is
+ * never overwritten. The "(account default)" marker keeps it honest: a reader can tell the
+ * value was inherited rather than confirmed for this specific case.
+ */
+function applyEnvironmentDefault(content, rootPath, relativePath) {
+    const account = relativePath.split('/')[0];
+    if (!account) return { content, applied: null };
+
+    const match = content.match(ENVIRONMENT_LINE_RE);
+    if (!match || match[1].trim()) return { content, applied: null };
+
+    const chosen = defaultEnvironmentFor(rootPath, account);
+    if (!chosen) return { content, applied: null };
+
+    const replacement = `Environment URL: ${chosen.url} (${chosen.label} account default)`;
+    return { content: content.replace(ENVIRONMENT_LINE_RE, replacement), applied: chosen };
+}
 
 function resolveOneDriveRoot(onedriveFolderConfig) {
     const configured = String(onedriveFolderConfig).replace(/\\/g, '/').replace(/\/+$/, '');
@@ -159,7 +181,7 @@ function mergeIndex(existingRaw, incomingRaw) {
  */
 function writePayloads(result, onedriveFolderConfig, options = {}) {
     const rootPath = path.resolve(options.root || resolveOneDriveRoot(onedriveFolderConfig));
-    const report = { written: [], appended: [], unchanged: [], skipped: [], root: rootPath };
+    const report = { written: [], appended: [], unchanged: [], skipped: [], enriched: [], root: rootPath };
 
     if (!options.dryRun && !fs.existsSync(rootPath)) {
         fs.mkdirSync(rootPath, { recursive: true });
@@ -236,6 +258,12 @@ function writePayloads(result, onedriveFolderConfig, options = {}) {
         }
 
         if (/\.md$/i.test(relativePath)) {
+            const enriched = applyEnvironmentDefault(content, rootPath, relativePath);
+            if (enriched.applied) {
+                content = enriched.content;
+                report.enriched.push({ path: relativePath, label: enriched.applied.label, url: enriched.applied.url });
+            }
+
             const duplicates = findDuplicateActivityBlocks(content);
             if (duplicates.length > 0) {
                 report.skipped.push({
@@ -280,6 +308,7 @@ function printWriteReport(report) {
     for (const p of report.written) console.log(`  [WRITE]     ${p}`);
     for (const p of report.appended) console.log(`  [APPEND]    ${p}`);
     for (const p of report.unchanged) console.log(`  [UNCHANGED] ${p}`);
+    for (const e of report.enriched) console.log(`  [ENV]       ${e.path} - Environment URL defaulted to ${e.label} (${e.url})`);
     for (const s of report.skipped) {
         console.log(`  ${s.nonFatal ? '[NOTE] ' : '[SKIP] '}     ${s.path} - ${s.reason}: ${s.detail}`);
     }
@@ -395,5 +424,6 @@ module.exports = {
     mergeIndex,
     updateIndex,
     scanWindowEnd,
-    resolveExistingSegments
+    resolveExistingSegments,
+    applyEnvironmentDefault
 };

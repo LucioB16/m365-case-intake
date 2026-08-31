@@ -15,6 +15,9 @@ This repository provides an automated, deterministic workflow for extracting sup
   answer is reported as a failure instead of being silently treated as an empty run.
 - **Append-only by design**: existing case files are never reprinted by the model. Copilot emits
   just the new Activity log entry and the local parser appends it, so history cannot be lost.
+- **Environment defaults per client**: an `ENVIRONMENTS.md` in each account folder supplies the
+  Dynamics environment URL when a case email does not contain one, and internal ticketing
+  systems are rejected so they can never be mistaken for a client environment.
 - **Idempotent**: re-running the same window appends nothing twice.
 - **Auto-Discovery**: Automatically resolves your local OneDrive path based on system environment variables.
 - **Data Obfuscation**: Toggleable PII redaction (names, IPs, server paths) to strictly respect client security policies.

@@ -181,11 +181,14 @@ search_rules: |
   window, then reconcile all three result sets before concluding a pattern has no matches.
 
 environment_url_detection:
-  instructions: "Extract the customer's environment URL if present in the email body. You MUST ignore internal ticketing system URLs."
+  instructions: "Extract the customer's environment URL only if it appears in the email body. You MUST ignore internal ticketing system URLs. If the email does not contain one, leave the field EMPTY: the local script fills it from the account's ENVIRONMENTS.md file, which you do not have and must not guess."
   pattern: "https?://[a-zA-Z0-9-]+\\.crm[0-9]*\\.dynamics\\.com[^\\s]*"
   ignore_context:
     - "Please review and acknowledge your case"
     - "Please review your case"
+  never_use_as_environment:
+    - "any arbelatechnologies.crm.dynamics.com address"
+    - "any arbelasupport.microsoftcrmportals.com address"
 
 # ---------------------------------------------------------
 # 6. FILE CONTENT

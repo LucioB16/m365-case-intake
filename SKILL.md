@@ -51,6 +51,7 @@ make it answer "I cannot write to your local drive".
 npm run batch                                  # daily sync over the configured lookback window
 npm run fetch "CAS-1234567-XXXX" "last 30 days" # on-demand single case
 npm run prompt                                 # render the prompt only, no M365 call
+npm run environments                           # report ENVIRONMENTS.md coverage per client
 npm run parse                                  # re-parse logs/latest_response.md
 npm test                                       # contract, parser and prompt tests
 ```
@@ -94,6 +95,51 @@ NO CHANGES
 
 `NO CHANGES` is the only legitimate way to report an empty run. A narrative answer with no
 payloads is never treated as success.
+
+## Environment defaults per client
+
+Case emails rarely contain the client's Dynamics environment URL, so `Environment URL:` was
+empty in 45 of 54 case files, and the few that were filled had picked up the internal Arbela
+ticketing CRM by mistake.
+
+Each account folder therefore carries an `ENVIRONMENTS.md`:
+
+```text
+# Environments - Woodforest
+
+DEV: https://woodforestsalesdevr2.crm.dynamics.com
+PROD: https://woodforestsales.crm.dynamics.com
+
+Default: PROD
+```
+
+- One line per environment, `LABEL: url`. Everything else in the file is free-form notes.
+- `Default:` selects the label to use. Without it the order is PROD, PRODUCTION, UAT, TEST,
+  QA, DEV, SANDBOX, then the first entry.
+- URLs are reduced to their origin, so pasting a full `main.aspx?appid=...` link is fine.
+- Internal Arbela and Argano hosts are rejected by the parser and must not be listed.
+
+When a **new** case file is written with a blank `Environment URL:`, the parser fills it from
+that account's file and marks it, for example:
+
+```text
+Environment URL: https://woodforestsales.crm.dynamics.com (PROD account default)
+```
+
+The marker matters: it tells a later reader the value was inherited from the account, not
+confirmed for that specific case. A URL that really came from the email is never overwritten,
+and `APPEND` payloads are never touched.
+
+Scaffold or review the files with:
+
+```bash
+npm run environments             # report only, writes nothing
+npm run environments -- --write  # create the missing files
+```
+
+Existing `ENVIRONMENTS.md` files are never overwritten; they are hand-maintained. New ones are
+pre-filled with the client URLs already found in that account's cases, with internal systems
+filtered out, and marked "please verify".
 
 ## Exit codes
 
@@ -162,4 +208,5 @@ never be used to declare the skill fixed.
 - `scripts/lib/response_contract.js`: classifies the reply as `CHANGES` / `NO_CHANGES` / `INVALID`
   and extracts payloads.
 - `scripts/lib/parser.js`: writes and appends validated payloads, and maintains the index.
+- `scripts/lib/environments.js`: reads the per-account `ENVIRONMENTS.md` and resolves its default.
 - `tests/`: `node --test` suite for the contract, the parser and the prompt pipeline.
