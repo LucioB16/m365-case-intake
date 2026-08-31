@@ -12,7 +12,10 @@ const INTERNAL_HOST_PATTERNS = [
     /(^|\.)arbelasupport\.microsoftcrmportals\.com$/i
 ];
 
-const PREFERRED_LABEL_ORDER = ['PROD', 'PRODUCTION', 'UAT', 'TEST', 'QA', 'DEV', 'SANDBOX'];
+// Lowest environment first. Work starts in DEV and is promoted upwards, so the safest
+// default for a case is the lowest one the client actually has. A client with only PROD
+// therefore defaults to PROD.
+const PROMOTION_ORDER = ['DEV', 'SANDBOX', 'SBX', 'QA', 'TEST', 'UAT', 'STAGING', 'STAGE', 'PREPROD', 'PRE-PROD', 'PROD', 'PRODUCTION'];
 
 function hostOf(url) {
     try {
@@ -77,7 +80,7 @@ function parseEnvironments(content) {
     return { environments, requestedDefault };
 }
 
-/** Picks the environment to use when a case has none: explicit Default, then PROD, then first. */
+/** Picks the environment to use when a case has none: explicit Default, then the lowest. */
 function resolveDefault({ environments, requestedDefault }) {
     if (environments.length === 0) return null;
 
@@ -88,11 +91,20 @@ function resolveDefault({ environments, requestedDefault }) {
         if (byUrl) return byUrl;
     }
 
-    for (const preferred of PREFERRED_LABEL_ORDER) {
-        const match = environments.find((e) => e.label === preferred);
+    for (const step of PROMOTION_ORDER) {
+        const match = environments.find((e) => e.label === step);
         if (match) return match;
     }
     return environments[0];
+}
+
+/** Sorts environments lowest to highest, keeping unknown labels at the end in file order. */
+function sortByPromotion(environments) {
+    return [...environments].sort((a, b) => {
+        const ia = PROMOTION_ORDER.indexOf(a.label);
+        const ib = PROMOTION_ORDER.indexOf(b.label);
+        return (ia === -1 ? PROMOTION_ORDER.length : ia) - (ib === -1 ? PROMOTION_ORDER.length : ib);
+    });
 }
 
 function environmentsPathFor(rootPath, account) {
@@ -100,24 +112,34 @@ function environmentsPathFor(rootPath, account) {
 }
 
 /**
- * Reads the default environment for one account.
+ * Reads the environments declared for one account, lowest environment first.
  * Returns null when the account has no ENVIRONMENTS.md or it declares no usable entry.
  */
-function defaultEnvironmentFor(rootPath, account) {
+function environmentsFor(rootPath, account) {
     const filePath = environmentsPathFor(rootPath, account);
     if (!fs.existsSync(filePath)) return null;
     const parsed = parseEnvironments(fs.readFileSync(filePath, 'utf8'));
     const chosen = resolveDefault(parsed);
     if (!chosen) return null;
-    return { ...chosen, source: filePath, count: parsed.environments.length };
+    return { all: sortByPromotion(parsed.environments), default: chosen, source: filePath };
+}
+
+/** Convenience wrapper returning only the default environment. */
+function defaultEnvironmentFor(rootPath, account) {
+    const found = environmentsFor(rootPath, account);
+    if (!found) return null;
+    return { ...found.default, source: found.source, count: found.all.length };
 }
 
 module.exports = {
     ENVIRONMENTS_FILE,
     parseEnvironments,
     resolveDefault,
+    sortByPromotion,
+    environmentsFor,
     defaultEnvironmentFor,
     environmentsPathFor,
     isInternalUrl,
-    normalizeEnvironmentUrl
+    normalizeEnvironmentUrl,
+    PROMOTION_ORDER
 };

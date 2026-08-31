@@ -2,16 +2,18 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { analyzeResponse, formatReport } = require('./response_contract');
-const { defaultEnvironmentFor } = require('./environments');
+const { environmentsFor } = require('./environments');
 
 const ACTIVITY_MARKER_RE = /^\[(?:Portal Comment|Assigned to me)\]/;
 const ENVIRONMENT_LINE_RE = /^Environment URL:[ \t]*(.*)$/m;
 
 /**
- * Fills an empty "Environment URL:" header from the account's ENVIRONMENTS.md.
+ * Fills an empty "Environment URL:" header from the account's ENVIRONMENTS.md and, when the
+ * account has more than one environment, injects the full list underneath it.
+ *
  * Only ever touches the line when it is blank, so a URL that really came from the email is
  * never overwritten. The "(account default)" marker keeps it honest: a reader can tell the
- * value was inherited rather than confirmed for this specific case.
+ * value was inherited from the account rather than confirmed for this specific case.
  */
 function applyEnvironmentDefault(content, rootPath, relativePath) {
     const account = relativePath.split('/')[0];
@@ -20,11 +22,19 @@ function applyEnvironmentDefault(content, rootPath, relativePath) {
     const match = content.match(ENVIRONMENT_LINE_RE);
     if (!match || match[1].trim()) return { content, applied: null };
 
-    const chosen = defaultEnvironmentFor(rootPath, account);
-    if (!chosen) return { content, applied: null };
+    const found = environmentsFor(rootPath, account);
+    if (!found) return { content, applied: null };
 
-    const replacement = `Environment URL: ${chosen.url} (${chosen.label} account default)`;
-    return { content: content.replace(ENVIRONMENT_LINE_RE, replacement), applied: chosen };
+    const lines = [`Environment URL: ${found.default.url} (${found.default.label} account default)`];
+    if (found.all.length > 1) {
+        lines.push('Environments:');
+        for (const env of found.all) lines.push(`- ${env.label}: ${env.url}`);
+    }
+
+    return {
+        content: content.replace(ENVIRONMENT_LINE_RE, lines.join('\n')),
+        applied: { ...found.default, count: found.all.length }
+    };
 }
 
 function resolveOneDriveRoot(onedriveFolderConfig) {
@@ -261,7 +271,7 @@ function writePayloads(result, onedriveFolderConfig, options = {}) {
             const enriched = applyEnvironmentDefault(content, rootPath, relativePath);
             if (enriched.applied) {
                 content = enriched.content;
-                report.enriched.push({ path: relativePath, label: enriched.applied.label, url: enriched.applied.url });
+                report.enriched.push({ path: relativePath, label: enriched.applied.label, url: enriched.applied.url, count: enriched.applied.count });
             }
 
             const duplicates = findDuplicateActivityBlocks(content);
@@ -308,7 +318,7 @@ function printWriteReport(report) {
     for (const p of report.written) console.log(`  [WRITE]     ${p}`);
     for (const p of report.appended) console.log(`  [APPEND]    ${p}`);
     for (const p of report.unchanged) console.log(`  [UNCHANGED] ${p}`);
-    for (const e of report.enriched) console.log(`  [ENV]       ${e.path} - Environment URL defaulted to ${e.label} (${e.url})`);
+    for (const e of report.enriched) console.log(`  [ENV]       ${e.path} - Environment URL defaulted to ${e.label} (${e.url})${e.count > 1 ? `, ${e.count} environments injected` : ''}`);
     for (const s of report.skipped) {
         console.log(`  ${s.nonFatal ? '[NOTE] ' : '[SKIP] '}     ${s.path} - ${s.reason}: ${s.detail}`);
     }

@@ -7,6 +7,8 @@ const path = require('path');
 const {
     parseEnvironments,
     resolveDefault,
+    sortByPromotion,
+    environmentsFor,
     defaultEnvironmentFor,
     isInternalUrl,
     normalizeEnvironmentUrl
@@ -79,24 +81,40 @@ test('the explicit Default line wins', () => {
     const parsed = parseEnvironments([
         'PROD: https://contoso.crm.dynamics.com',
         'DEV: https://contoso-dev.crm.dynamics.com',
-        'Default: DEV'
+        'Default: PROD'
     ].join('\n'));
-    assert.strictEqual(resolveDefault(parsed).label, 'DEV');
+    assert.strictEqual(resolveDefault(parsed).label, 'PROD');
 });
 
-test('without a Default line PROD wins, then the first entry', () => {
-    const withProd = parseEnvironments('DEV: https://a-dev.crm.dynamics.com\nPROD: https://a.crm.dynamics.com');
-    assert.strictEqual(resolveDefault(withProd).label, 'PROD');
+test('without a Default line the LOWEST environment wins', () => {
+    const withDev = parseEnvironments('PROD: https://a.crm.dynamics.com\nDEV: https://a-dev.crm.dynamics.com');
+    assert.strictEqual(resolveDefault(withDev).label, 'DEV');
 
-    const noProd = parseEnvironments('DEV: https://a-dev.crm.dynamics.com\nTEST: https://a-test.crm.dynamics.com');
-    assert.strictEqual(resolveDefault(noProd).label, 'TEST', 'TEST outranks DEV');
+    const noDev = parseEnvironments('PROD: https://a.crm.dynamics.com\nUAT: https://a-uat.crm.dynamics.com');
+    assert.strictEqual(resolveDefault(noDev).label, 'UAT', 'UAT is lower than PROD');
+
+    const testAndProd = parseEnvironments('PROD: https://a.crm.dynamics.com\nTEST: https://a-test.crm.dynamics.com\nUAT: https://a-uat.crm.dynamics.com');
+    assert.strictEqual(resolveDefault(testAndProd).label, 'TEST', 'TEST is lower than UAT');
+
+    const onlyProd = parseEnvironments('PROD: https://cfeg.crm.dynamics.com');
+    assert.strictEqual(resolveDefault(onlyProd).label, 'PROD', 'a client with only PROD defaults to PROD');
 
     assert.strictEqual(resolveDefault({ environments: [], requestedDefault: '' }), null);
 });
 
-test('an unknown Default label falls back instead of failing', () => {
-    const parsed = parseEnvironments('PROD: https://a.crm.dynamics.com\nDefault: STAGING');
-    assert.strictEqual(resolveDefault(parsed).label, 'PROD');
+test('sortByPromotion orders lowest to highest', () => {
+    const { environments } = parseEnvironments([
+        'PROD: https://a.crm.dynamics.com',
+        'UAT: https://a-uat.crm.dynamics.com',
+        'DEV: https://a-dev.crm.dynamics.com',
+        'TEST: https://a-test.crm.dynamics.com'
+    ].join('\n'));
+    assert.deepStrictEqual(sortByPromotion(environments).map((e) => e.label), ['DEV', 'TEST', 'UAT', 'PROD']);
+});
+
+test('an unknown Default label falls back to the lowest', () => {
+    const parsed = parseEnvironments('PROD: https://a.crm.dynamics.com\nDEV: https://a-dev.crm.dynamics.com\nDefault: STAGING');
+    assert.strictEqual(resolveDefault(parsed).label, 'DEV');
 });
 
 test('defaultEnvironmentFor reads the account file', () => {
@@ -109,21 +127,29 @@ test('defaultEnvironmentFor reads the account file', () => {
             'utf8'
         );
         const chosen = defaultEnvironmentFor(root, 'Contoso Ltd');
-        assert.strictEqual(chosen.label, 'PROD');
-        assert.strictEqual(chosen.url, 'https://contoso.crm.dynamics.com');
+        assert.strictEqual(chosen.label, 'DEV');
+        assert.strictEqual(chosen.url, 'https://contoso-dev.crm.dynamics.com');
         assert.strictEqual(chosen.count, 2);
 
+        const all = environmentsFor(root, 'Contoso Ltd');
+        assert.deepStrictEqual(all.all.map((e) => e.label), ['DEV', 'PROD']);
+
         assert.strictEqual(defaultEnvironmentFor(root, 'Account With No File'), null);
+        assert.strictEqual(environmentsFor(root, 'Account With No File'), null);
     } finally {
         fs.rmSync(root, { recursive: true, force: true });
     }
 });
 
-test('a blank Environment URL is filled from the account default', () => {
+test('a blank Environment URL is filled with the lowest environment and the full list', () => {
     const root = tempRoot();
     try {
         fs.mkdirSync(path.join(root, 'Contoso Ltd'), { recursive: true });
-        fs.writeFileSync(path.join(root, 'Contoso Ltd', 'ENVIRONMENTS.md'), 'PROD: https://contoso.crm.dynamics.com\n', 'utf8');
+        fs.writeFileSync(
+            path.join(root, 'Contoso Ltd', 'ENVIRONMENTS.md'),
+            'PROD: https://contoso.crm.dynamics.com\nUAT: https://contoso-uat.crm.dynamics.com\nDEV: https://contoso-dev.crm.dynamics.com\n',
+            'utf8'
+        );
 
         const result = applyEnvironmentDefault(
             agentsMd('Environment URL: '),
@@ -131,8 +157,26 @@ test('a blank Environment URL is filled from the account default', () => {
             'Contoso Ltd/CAS-1000000-A1B2 - Example Title/AGENTS.md'
         );
 
+        assert.strictEqual(result.applied.label, 'DEV');
+        assert.strictEqual(result.applied.count, 3);
+        assert.ok(result.content.includes('Environment URL: https://contoso-dev.crm.dynamics.com (DEV account default)'));
+        assert.ok(result.content.includes('Environments:\n- DEV: https://contoso-dev.crm.dynamics.com\n- UAT: https://contoso-uat.crm.dynamics.com\n- PROD: https://contoso.crm.dynamics.com'));
+        assert.ok(result.content.includes('\nDescription:'), 'the rest of the header must survive');
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
+
+test('a single-environment client gets no redundant list', () => {
+    const root = tempRoot();
+    try {
+        fs.mkdirSync(path.join(root, 'CFEG'), { recursive: true });
+        fs.writeFileSync(path.join(root, 'CFEG', 'ENVIRONMENTS.md'), 'PROD: https://cfeg.crm.dynamics.com\n', 'utf8');
+
+        const result = applyEnvironmentDefault(agentsMd('Environment URL: '), root, 'CFEG/CAS-1 - T/AGENTS.md');
         assert.strictEqual(result.applied.label, 'PROD');
-        assert.ok(result.content.includes('Environment URL: https://contoso.crm.dynamics.com (PROD account default)'));
+        assert.ok(result.content.includes('Environment URL: https://cfeg.crm.dynamics.com (PROD account default)'));
+        assert.ok(!result.content.includes('Environments:'));
     } finally {
         fs.rmSync(root, { recursive: true, force: true });
     }
@@ -201,6 +245,7 @@ test('the default is applied end to end when a new case is written', () => {
 
         const written = fs.readFileSync(path.join(root, rel), 'utf8');
         assert.ok(written.includes('Environment URL: https://contoso-dev.crm.dynamics.com (DEV account default)'));
+        assert.ok(written.includes('- PROD: https://contoso.crm.dynamics.com'));
     } finally {
         fs.rmSync(root, { recursive: true, force: true });
     }

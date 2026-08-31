@@ -13,10 +13,12 @@ const path = require('path');
 
 const { loadConfig } = require('./lib/prompt_builder');
 const { resolveOneDriveRoot } = require('./lib/parser');
-const { ENVIRONMENTS_FILE, isInternalUrl, normalizeEnvironmentUrl, parseEnvironments, resolveDefault } = require('./lib/environments');
+const { ENVIRONMENTS_FILE, isInternalUrl, normalizeEnvironmentUrl, parseEnvironments, resolveDefault, sortByPromotion } = require('./lib/environments');
 
 const rootDir = path.join(__dirname, '..');
-const write = process.argv.slice(2).includes('--write');
+const args = process.argv.slice(2);
+const write = args.includes('--write');
+const fixDefault = args.includes('--fix-default');
 
 function labelFor(url) {
     const host = url.toLowerCase();
@@ -49,27 +51,52 @@ function discoverUrls(accountPath) {
     return [...found.entries()].map(([url, label]) => ({ url, label }));
 }
 
+function legacyBlankTemplate(account) {
+    return [
+        `# Environments - ${account}`,
+        '',
+        'One line per environment, as "LABEL: url". Add or correct these by hand.',
+        'The case intake uses this file to fill "Environment URL:" when a case email does',
+        'not contain one. "Default:" chooses which label is used; without it PROD wins.',
+        '',
+        'PROD:',
+        'UAT:',
+        'TEST:',
+        'DEV:',
+        '',
+        'Default: PROD',
+        '',
+        'Notes:',
+        '- Lines without a URL are ignored.',
+        '- Internal Arbela/Argano systems are rejected and must not be listed here.',
+        ''
+    ].join('\n');
+}
+
 function template(account, discovered) {
+    const ordered = sortByPromotion(discovered);
     const lines = [];
     lines.push(`# Environments - ${account}`);
     lines.push('');
     lines.push('One line per environment, as "LABEL: url". Add or correct these by hand.');
     lines.push('The case intake uses this file to fill "Environment URL:" when a case email does');
-    lines.push('not contain one. "Default:" chooses which label is used; without it PROD wins.');
+    lines.push('not contain one, and injects the whole list into the case file.');
+    lines.push('"Default:" chooses which label is used; without it the LOWEST environment wins');
+    lines.push('(DEV, then SANDBOX, QA, TEST, UAT, STAGING, PREPROD, PROD).');
     lines.push('');
 
-    if (discovered.length > 0) {
+    if (ordered.length > 0) {
         lines.push('Discovered from existing case files, please verify:');
-        for (const d of discovered) lines.push(`${d.label}: ${d.url}`);
+        for (const d of ordered) lines.push(`${d.label}: ${d.url}`);
         lines.push('');
-        lines.push(`Default: ${resolveDefault({ environments: discovered, requestedDefault: '' }).label}`);
+        lines.push(`Default: ${resolveDefault({ environments: ordered, requestedDefault: '' }).label}`);
     } else {
-        lines.push('PROD:');
-        lines.push('UAT:');
-        lines.push('TEST:');
         lines.push('DEV:');
+        lines.push('TEST:');
+        lines.push('UAT:');
+        lines.push('PROD:');
         lines.push('');
-        lines.push('Default: PROD');
+        lines.push('Default:');
     }
 
     lines.push('');
@@ -92,6 +119,7 @@ try {
 
     let created = 0;
     let existing = 0;
+    let fixed = 0;
 
     console.log(`Cases root: ${root}`);
     console.log(`Accounts:   ${accounts.length}${write ? '' : '   (dry run, pass --write to create files)'}\n`);
@@ -99,8 +127,30 @@ try {
     for (const account of accounts) {
         const target = path.join(root, account, ENVIRONMENTS_FILE);
         if (fs.existsSync(target)) {
-            const parsed = parseEnvironments(fs.readFileSync(target, 'utf8'));
+            const current = fs.readFileSync(target, 'utf8');
+            const parsed = parseEnvironments(current);
             const chosen = resolveDefault(parsed);
+            const lowest = resolveDefault({ environments: parsed.environments, requestedDefault: '' });
+
+            // The first generation of these files hard-coded "Default: PROD". --fix-default
+            // rewrites only that one line, so a hand-picked default is never clobbered silently.
+            const stale = fixDefault && lowest && parsed.requestedDefault && parsed.requestedDefault !== lowest.label;
+            if (stale) {
+                console.log(`  [${write ? 'FIXED ' : 'WOULD '}] ${account} - Default ${parsed.requestedDefault} -> ${lowest.label}`);
+                if (write) fs.writeFileSync(target, current.replace(/^Default\s*:.*$/mi, `Default: ${lowest.label}`), 'utf8');
+                fixed++;
+                continue;
+            }
+
+            // An untouched blank template from the first generation still carries the old
+            // ordering and "Default: PROD". Regenerate it only when it is byte-identical to
+            // what was generated, so anything hand-written is left alone.
+            if (fixDefault && parsed.environments.length === 0 && current === legacyBlankTemplate(account)) {
+                console.log(`  [${write ? 'FIXED ' : 'WOULD '}] ${account} - blank template refreshed to lowest-first ordering`);
+                if (write) fs.writeFileSync(target, template(account, []), 'utf8');
+                fixed++;
+                continue;
+            }
             console.log(`  [KEEP]   ${account} - ${parsed.environments.length} environment(s)${chosen ? `, default ${chosen.label}` : ', no default resolvable'}`);
             existing++;
             continue;
@@ -114,8 +164,8 @@ try {
         created++;
     }
 
-    console.log(`\n${existing} kept, ${created} ${write ? 'created' : 'to create'}.`);
-    if (!write) console.log('Nothing was written. Re-run with: npm run environments -- --write');
+    console.log(`\n${existing} kept, ${fixed} default(s) ${write ? 'fixed' : 'to fix'}, ${created} ${write ? 'created' : 'to create'}.`);
+    if (!write) console.log('Nothing was written. Re-run with: npm run environments -- --write' + (fixDefault ? ' --fix-default' : ''));
 } catch (e) {
     console.error(`environments FAILED: ${e.message}`);
     process.exit(1);

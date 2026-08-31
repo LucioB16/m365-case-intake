@@ -110,20 +110,24 @@ Each account folder therefore carries an `ENVIRONMENTS.md`:
 DEV: https://woodforestsalesdevr2.crm.dynamics.com
 PROD: https://woodforestsales.crm.dynamics.com
 
-Default: PROD
+Default: DEV
 ```
 
 - One line per environment, `LABEL: url`. Everything else in the file is free-form notes.
-- `Default:` selects the label to use. Without it the order is PROD, PRODUCTION, UAT, TEST,
-  QA, DEV, SANDBOX, then the first entry.
+- `Default:` selects the label to use. Without it the **lowest** environment wins, following
+  the promotion ladder DEV, SANDBOX, QA, TEST, UAT, STAGING, PREPROD, PROD. A client that only
+  has PROD therefore defaults to PROD.
 - URLs are reduced to their origin, so pasting a full `main.aspx?appid=...` link is fine.
 - Internal Arbela and Argano hosts are rejected by the parser and must not be listed.
 
-When a **new** case file is written with a blank `Environment URL:`, the parser fills it from
-that account's file and marks it, for example:
+When a **new** case file is written with a blank `Environment URL:`, the parser fills it with
+the default and injects the whole list underneath, for example:
 
 ```text
-Environment URL: https://woodforestsales.crm.dynamics.com (PROD account default)
+Environment URL: https://woodforestsalesdevr2.crm.dynamics.com (DEV account default)
+Environments:
+- DEV: https://woodforestsalesdevr2.crm.dynamics.com
+- PROD: https://woodforestsales.crm.dynamics.com
 ```
 
 The marker matters: it tells a later reader the value was inherited from the account, not
@@ -135,6 +139,7 @@ Scaffold or review the files with:
 ```bash
 npm run environments             # report only, writes nothing
 npm run environments -- --write  # create the missing files
+npm run environments -- --write --fix-default   # realign a stale Default line
 ```
 
 Existing `ENVIRONMENTS.md` files are never overwritten; they are hand-maintained. New ones are
