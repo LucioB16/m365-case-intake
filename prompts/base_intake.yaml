@@ -206,11 +206,14 @@ file_template_for_agents_md: |
 
   # Agent Instructions
   - Use the /support-case-investigator skill for analyzing this case.
-  - If the user asks you to generate a message or reply, use the /humanizer skill on the draft.
+  - If the user asks you to generate a message or reply, use the /humanizer skill on the draft. Write it in English and keep it concise unless the user asks for something else.
   - Always send generated messages in a plain text code block unless instructed otherwise.
   - Any message that the user confirms as sent or received MUST be recorded in the Activity log.
   - Do NOT write the full message content directly in the Activity log. Instead, create a separate markdown file for it in a `messages/` subfolder (e.g., `messages/2026-08-26_15-57_Sent.md` or `messages/2026-08-26_15-57_Received.md`), and just add a markdown link referencing that file in the Activity log.
+  - The client's environments are listed in ENVIRONMENTS.md in the account folder, which is the parent folder of this case folder. Promote work upwards: DEV, then TEST/UAT, then PROD.
+  - An Environment URL marked "(LABEL account default)" was inherited from that ENVIRONMENTS.md and was NOT confirmed for this case. Confirm the environment with the user before making any change.
   - If there is no local git repository for this folder, initialize one (local only, no remote) to track changes and prevent context loss.
+  - Commit EVERYTHING to that local repository as you work: file changes, notes, messages and screenshots. It exists only for local tracking and history, so never add a remote and never push.
 {{OBFUSCATION_WARNING}}
 
   ---

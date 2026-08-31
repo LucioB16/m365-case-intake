@@ -50,18 +50,64 @@ test('parses labelled environments and ignores prose', () => {
         '- this line has no url'
     ].join('\n'));
 
-    assert.deepStrictEqual(environments, [
-        { label: 'PROD', url: 'https://contoso.crm.dynamics.com' },
-        { label: 'UAT', url: 'https://contoso-uat.crm.dynamics.com' },
-        { label: 'DEV', url: 'https://contoso-dev.crm.dynamics.com' }
+    assert.deepStrictEqual(environments.map((e) => [e.label, e.url]), [
+        ['PROD', 'https://contoso.crm.dynamics.com'],
+        ['UAT', 'https://contoso-uat.crm.dynamics.com'],
+        ['DEV', 'https://contoso-dev.crm.dynamics.com']
     ]);
+});
+
+test('a "## Set" heading groups environments so labels can repeat', () => {
+    const { environments } = parseEnvironments([
+        '# Environments - AquaCal',
+        '## AquaCal',
+        'DEV: https://aquacaldev.crm.dynamics.com',
+        'PROD: https://aquacal.crm.dynamics.com',
+        '## TeamHorner',
+        'DEV: https://thdev.crm.dynamics.com',
+        'PROD: https://teamhorner.crm.dynamics.com'
+    ].join('\n'));
+
+    assert.deepStrictEqual(environments.map((e) => e.name), [
+        'AquaCal/DEV', 'AquaCal/PROD', 'TeamHorner/DEV', 'TeamHorner/PROD'
+    ]);
+});
+
+test('a Default can name a Set/LABEL pair', () => {
+    const parsed = parseEnvironments([
+        '## R1 Client Care',
+        'DEV: https://a-devr1.crm.dynamics.com',
+        '## R2 Delivery',
+        'DEV: https://a-devr2.crm.dynamics.com',
+        'Default: R2 Delivery/DEV'
+    ].join('\n'));
+    assert.strictEqual(resolveDefault(parsed).url, 'https://a-devr2.crm.dynamics.com');
+});
+
+test('with several sets and no Default the first set breaks the tie', () => {
+    const parsed = parseEnvironments([
+        '## R1 Client Care',
+        'UAT: https://a-uatr1.crm.dynamics.com',
+        '## R2 Delivery',
+        'DEV: https://a-devr2.crm.dynamics.com'
+    ].join('\n'));
+    // DEV is lower than UAT, so it wins even though it belongs to the second set.
+    assert.strictEqual(resolveDefault(parsed).name, 'R2 Delivery/DEV');
+
+    const sameLabel = parseEnvironments([
+        '## R1 Client Care',
+        'DEV: https://a-devr1.crm.dynamics.com',
+        '## R2 Delivery',
+        'DEV: https://a-devr2.crm.dynamics.com'
+    ].join('\n'));
+    assert.strictEqual(resolveDefault(sameLabel).name, 'R1 Client Care/DEV');
 });
 
 test('strips app ids and record ids down to the origin', () => {
     const { environments } = parseEnvironments(
         'PROD: https://contoso.crm.dynamics.com/main.aspx?appid=1234&pagetype=entityrecord&id=abcd'
     );
-    assert.deepStrictEqual(environments, [{ label: 'PROD', url: 'https://contoso.crm.dynamics.com' }]);
+    assert.deepStrictEqual(environments.map((e) => [e.label, e.url]), [['PROD', 'https://contoso.crm.dynamics.com']]);
     assert.strictEqual(normalizeEnvironmentUrl('https://x.crm.dynamics.com/main.aspx?a=1'), 'https://x.crm.dynamics.com');
 });
 
@@ -74,7 +120,7 @@ test('internal Arbela and Argano systems are rejected', () => {
         'PROD: https://arbelatechnologies.crm.dynamics.com',
         'DEV: https://contoso-dev.crm.dynamics.com'
     ].join('\n'));
-    assert.deepStrictEqual(environments, [{ label: 'DEV', url: 'https://contoso-dev.crm.dynamics.com' }]);
+    assert.deepStrictEqual(environments.map((e) => [e.label, e.url]), [['DEV', 'https://contoso-dev.crm.dynamics.com']]);
 });
 
 test('the explicit Default line wins', () => {

@@ -52,6 +52,7 @@ npm run batch                                  # daily sync over the configured 
 npm run fetch "CAS-1234567-XXXX" "last 30 days" # on-demand single case
 npm run prompt                                 # render the prompt only, no M365 call
 npm run environments                           # report ENVIRONMENTS.md coverage per client
+npm run normalize                              # align the Agent Instructions block in every case file
 npm run parse                                  # re-parse logs/latest_response.md
 npm test                                       # contract, parser and prompt tests
 ```
@@ -114,6 +115,10 @@ Default: DEV
 ```
 
 - One line per environment, `LABEL: url`. Everything else in the file is free-form notes.
+- A `## Set name` heading groups a set of environments. Some clients run more than one set,
+  for example AquaCal and TeamHorner, or Woodforest R1 and R2, and each set has its own
+  DEV/TEST/UAT/PROD. Labels only need to be unique inside their set, and a `Default:` can be
+  written as `Set/LABEL`.
 - `Default:` selects the label to use. Without it the **lowest** environment wins, following
   the promotion ladder DEV, SANDBOX, QA, TEST, UAT, STAGING, PREPROD, PROD. A client that only
   has PROD therefore defaults to PROD.

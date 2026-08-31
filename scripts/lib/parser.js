@@ -25,10 +25,17 @@ function applyEnvironmentDefault(content, rootPath, relativePath) {
     const found = environmentsFor(rootPath, account);
     if (!found) return { content, applied: null };
 
-    const lines = [`Environment URL: ${found.default.url} (${found.default.label} account default)`];
+    const lines = [`Environment URL: ${found.default.url} (${found.default.name} account default)`];
     if (found.all.length > 1) {
         lines.push('Environments:');
-        for (const env of found.all) lines.push(`- ${env.label}: ${env.url}`);
+        let group = null;
+        for (const env of found.all) {
+            if (env.group !== group) {
+                group = env.group;
+                if (group) lines.push(`- ${group}:`);
+            }
+            lines.push(group ? `  - ${env.label}: ${env.url}` : `- ${env.label}: ${env.url}`);
+        }
     }
 
     return {
@@ -36,7 +43,6 @@ function applyEnvironmentDefault(content, rootPath, relativePath) {
         applied: { ...found.default, count: found.all.length }
     };
 }
-
 function resolveOneDriveRoot(onedriveFolderConfig) {
     const configured = String(onedriveFolderConfig).replace(/\\/g, '/').replace(/\/+$/, '');
     if (path.isAbsolute(configured)) return path.resolve(configured);
@@ -318,7 +324,7 @@ function printWriteReport(report) {
     for (const p of report.written) console.log(`  [WRITE]     ${p}`);
     for (const p of report.appended) console.log(`  [APPEND]    ${p}`);
     for (const p of report.unchanged) console.log(`  [UNCHANGED] ${p}`);
-    for (const e of report.enriched) console.log(`  [ENV]       ${e.path} - Environment URL defaulted to ${e.label} (${e.url})${e.count > 1 ? `, ${e.count} environments injected` : ''}`);
+    for (const e of report.enriched) console.log(`  [ENV]       ${e.path} - Environment URL defaulted to ${e.name} (${e.url})${e.count > 1 ? `, ${e.count} environments injected` : ''}`);
     for (const s of report.skipped) {
         console.log(`  ${s.nonFatal ? '[NOTE] ' : '[SKIP] '}     ${s.path} - ${s.reason}: ${s.detail}`);
     }

@@ -51,19 +51,32 @@ function normalizeEnvironmentUrl(url) {
  *   PROD: https://contoso.crm.dynamics.com
  *   - DEV: https://contoso-dev.crm.dynamics.com
  *   Default: PROD
+ *
+ * A "## Group name" heading starts a set. Some clients run more than one set of
+ * environments, for example AquaCal and TeamHorner, or Woodforest R1 and R2, and each set
+ * has its own DEV/TEST/UAT/PROD. Labels only have to be unique inside their set, and a
+ * Default can be written as "Group/LABEL".
  * Everything else is treated as free-form notes and ignored.
  */
 function parseEnvironments(content) {
     const environments = [];
     let requestedDefault = '';
+    let group = '';
 
     for (const rawLine of String(content || '').split(/\r?\n/)) {
+        const heading = rawLine.match(/^\s{0,3}#{2,6}\s+(\S.*?)\s*$/);
+        if (heading) {
+            const name = heading[1].trim();
+            group = /^(notes?|environments?)$/i.test(name) ? '' : name;
+            continue;
+        }
+
         const line = rawLine.replace(/^[\s>*\-+]+/, '').trim();
         if (!line || line.startsWith('#')) continue;
 
         const defaultMatch = line.match(/^default\s*:\s*(\S.*)$/i);
         if (defaultMatch) {
-            requestedDefault = defaultMatch[1].trim().replace(/[.`'"]+$/, '').toUpperCase();
+            requestedDefault = defaultMatch[1].trim().replace(/[.`'"]+$/, '');
             continue;
         }
 
@@ -73,19 +86,27 @@ function parseEnvironments(content) {
         const label = entryMatch[1].trim().toUpperCase();
         const url = normalizeEnvironmentUrl(entryMatch[2].replace(/[.,;)]+$/, ''));
         if (!url || isInternalUrl(url)) continue;
-        if (environments.some((e) => e.label === label)) continue;
-        environments.push({ label, url });
+        if (environments.some((e) => e.group === group && e.label === label)) continue;
+        environments.push({ group, label, url, name: group ? `${group}/${label}` : label });
     }
 
     return { environments, requestedDefault };
 }
 
-/** Picks the environment to use when a case has none: explicit Default, then the lowest. */
+/**
+ * Picks the environment to use when a case has none.
+ * An explicit Default wins; it may name a label, a "Group/LABEL" pair, or a URL.
+ * Otherwise the lowest environment on the promotion ladder wins, and when several sets are
+ * declared the one from the first set in the file breaks the tie.
+ */
 function resolveDefault({ environments, requestedDefault }) {
     if (environments.length === 0) return null;
 
     if (requestedDefault) {
-        const byLabel = environments.find((e) => e.label === requestedDefault);
+        const wanted = requestedDefault.toUpperCase();
+        const byName = environments.find((e) => e.name.toUpperCase() === wanted);
+        if (byName) return byName;
+        const byLabel = environments.find((e) => e.label === wanted);
         if (byLabel) return byLabel;
         const byUrl = environments.find((e) => e.url.toLowerCase() === normalizeEnvironmentUrl(requestedDefault).toLowerCase());
         if (byUrl) return byUrl;
@@ -98,9 +119,17 @@ function resolveDefault({ environments, requestedDefault }) {
     return environments[0];
 }
 
-/** Sorts environments lowest to highest, keeping unknown labels at the end in file order. */
+/**
+ * Sorts environments for display: sets in the order they appear in the file, and inside each
+ * set from the lowest environment to the highest. Unknown labels go last, in file order.
+ */
 function sortByPromotion(environments) {
+    const groupOrder = [];
+    for (const e of environments) if (!groupOrder.includes(e.group)) groupOrder.push(e.group);
+
     return [...environments].sort((a, b) => {
+        const g = groupOrder.indexOf(a.group) - groupOrder.indexOf(b.group);
+        if (g !== 0) return g;
         const ia = PROMOTION_ORDER.indexOf(a.label);
         const ib = PROMOTION_ORDER.indexOf(b.label);
         return (ia === -1 ? PROMOTION_ORDER.length : ia) - (ib === -1 ? PROMOTION_ORDER.length : ib);

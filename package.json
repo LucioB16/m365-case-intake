@@ -9,6 +9,7 @@
     "fetch": "node scripts/run_fetch.js",
     "prompt": "node scripts/build_prompt.js",
     "environments": "node scripts/init_environments.js",
+    "normalize": "node scripts/normalize_agents.js",
     "test": "node --test \"tests/**/*.test.js\"",
     "parse": "node -e \"const { parsePayload } = require('./scripts/lib/parser.js'); const config = require('./config.json'); const r = parsePayload('./logs/latest_response.md', config.ONEDRIVE_FOLDER); process.exit(r.status === 'INVALID' ? 1 : r.status === 'PARTIAL' ? 2 : 0);\""
   },
