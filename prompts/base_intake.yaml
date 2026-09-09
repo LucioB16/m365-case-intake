@@ -200,14 +200,23 @@ file_template_for_agents_md: |
   Reporter: <reporter>
   Created On: <created_on>
   Environment URL: <env_url_or_blank>
+  Current Status Comment:
 
   Description:
   <description>
 
   # Agent Instructions
   - Use the /support-case-investigator skill for analyzing this case.
+  - Generate messages or replies ONLY when the user explicitly asks for one.
   - If the user asks you to generate a message or reply, use the /humanizer skill on the draft. Write it in English and keep it concise unless the user asks for something else.
   - Always send generated messages in a plain text code block unless instructed otherwise.
+  - Status comment format: `Status Comment: <summary>` and the full line must be 100 characters max.
+  - Example status comments (all under 100 chars):
+  - `Status Comment: 9/9 - in progress with ${user}`
+  - `Status Comment: 9/8 - fixed 3 DEVR1 issues and retested; pending customer validation/OK for UAT`
+  - `Status Comment: 9/2 - fix deployed to PROD and verified; customer reviewing notifications`
+  - Keep `Current Status Comment:` in AGENTS.md updated to the latest approved status comment.
+  - For each commit, append the same status comment to `status-comment-history.md` in this case folder using `- yyyy-mm-dd HH:mm (local) | <short_commit_sha> | <status comment>`.
   - Any message that the user confirms as sent or received MUST be recorded in the Activity log.
   - Do NOT write the full message content directly in the Activity log. Instead, create a separate markdown file for it in a `messages/` subfolder (e.g., `messages/2026-08-26_15-57_Sent.md` or `messages/2026-08-26_15-57_Received.md`), and just add a markdown link referencing that file in the Activity log.
   - The client's environments are listed in ENVIRONMENTS.md in the account folder, which is the parent folder of this case folder. Promote work upwards: DEV, then TEST/UAT, then PROD.

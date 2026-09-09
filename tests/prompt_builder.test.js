@@ -45,6 +45,8 @@ test('the template only uses placeholders the builder knows how to resolve', () 
 test('rendering leaves no unresolved placeholder', () => {
     const prompt = render();
     assert.strictEqual(prompt.match(/{{[A-Z0-9_]+}}/g), null);
+    assert.strictEqual(prompt.match(/\$\{[a-zA-Z0-9_]+\}/g), null);
+    assert.ok(!prompt.includes('{user}'));
 });
 
 test('every configured value reaches the rendered prompt', () => {
@@ -79,6 +81,10 @@ test('a template with an unknown placeholder is rejected instead of being sent',
         () => buildPrompt({ template: TEMPLATE + '\nextra: {{UNKNOWN_TOKEN}}\n', config: CONFIG, objective: OBJECTIVE }),
         /unresolved placeholders: {{UNKNOWN_TOKEN}}/
     );
+    assert.throws(
+        () => buildPrompt({ template: TEMPLATE + '\nextra: ${unknown}\n', config: CONFIG, objective: OBJECTIVE }),
+        /unresolved placeholders: \$\{unknown\}/
+    );
 });
 
 test('the output contract survives rendering intact', () => {
@@ -107,6 +113,24 @@ test('obfuscation rules are injected only when enabled', () => {
 test('scope rules switch with the SCOPE setting', () => {
     assert.ok(render({ SCOPE: 'ALL' }).includes('BOTH its subject_regex AND its body_signal'));
     assert.ok(render({ SCOPE: 'ASSIGNED_ONLY' }).includes("the 'Owner' field matches your name"));
+});
+
+test('agent instructions enforce status comment workflow', () => {
+    const prompt = render();
+    assert.ok(prompt.includes('Generate messages or replies ONLY when the user explicitly asks for one.'));
+    assert.ok(!prompt.includes('review all cases currently assigned to you before drafting it.'));
+    assert.ok(prompt.includes('Status comment format: `Status Comment: <summary>` and the full line must be 100 characters max.'));
+    assert.ok(prompt.includes('Example status comments (all under 100 chars):'));
+    assert.ok(prompt.includes('Status Comment: 9/9 - in progress with Test User'));
+    assert.ok(prompt.includes('Status Comment: 9/8 - fixed 3 DEVR1 issues and retested; pending customer validation/OK for UAT'));
+    assert.ok(prompt.includes('Status Comment: 9/2 - fix deployed to PROD and verified; customer reviewing notifications'));
+    assert.ok(!prompt.includes('${user}'));
+    assert.ok(!prompt.includes('{user}'));
+    assert.ok(!prompt.includes('Arbela CRM'));
+    assert.ok(!prompt.includes('new_xpoinfo'));
+    assert.ok(!prompt.includes('Lucio'));
+    assert.ok(prompt.includes('Current Status Comment:'));
+    assert.ok(prompt.includes('status-comment-history.md'));
 });
 
 test('an on-demand prefix is prepended without disturbing the contract', () => {

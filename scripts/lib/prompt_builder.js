@@ -70,8 +70,19 @@ function buildPrompt({ template, config, objective, prefix = '' }) {
         rendered = rendered.split(`{{${key}}}`).join(value);
     }
 
+    // Optional shorthand placeholders keep the template user-agnostic while allowing
+    // examples like "in progress with ${user}".
+    const shorthand = { user: config.USER_NAME };
+    for (const [key, value] of Object.entries(shorthand)) {
+        rendered = rendered.split(`\${${key}}`).join(value);
+        rendered = rendered.split(`{${key}}`).join(value);
+    }
+
     // Fail loudly instead of shipping a half-rendered prompt to Copilot.
-    const leftovers = [...new Set((rendered.match(/{{[A-Z0-9_]+}}/g) || []))];
+    const leftovers = [
+        ...new Set(rendered.match(/{{[A-Z0-9_]+}}/g) || []),
+        ...new Set(rendered.match(/\$\{[a-zA-Z0-9_]+\}/g) || [])
+    ];
     if (leftovers.length > 0) {
         throw new Error(`Prompt template still contains unresolved placeholders: ${leftovers.join(', ')}`);
     }
